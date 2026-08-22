@@ -7,16 +7,35 @@ services:
       POSTGRES_USER: feedhub
       POSTGRES_PASSWORD: feedhub
     ports:
-      # Фиксированный порт, а не случайный: так можно подключиться из IDE,
-      # psql или DBeaver, не выясняя каждый раз, что там намапилось.
+      # Fixed port so psql, DBeaver or the IDE can connect without looking up
+      # a randomly assigned one.
       - '5432:5432'
     volumes:
       - feedhub-pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U feedhub -d feedhub']
+      test: [ 'CMD-SHELL', 'pg_isready -U feedhub -d feedhub' ]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Behind a compose profile on purpose: Spring Boot's docker-compose support
+  # starts profile-less services during `bootRun`, and starting the application
+  # from inside the application would be recursive.
+  # Run the full stack with: docker compose --profile full up -d
+  app:
+    profiles: [ 'full' ]
+    build: .
+    container_name: feedhub-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/feedhub
+      DB_USERNAME: feedhub
+      DB_PASSWORD: feedhub
+    ports:
+      - '8080:8080'
 
 volumes:
   feedhub-pgdata:

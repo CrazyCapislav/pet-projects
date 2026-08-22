@@ -257,7 +257,9 @@ class ArticleApiIT {
             content = """{"tags":["Kotlin","News"]}"""
         }.andExpect {
             status { isOk() }
-            jsonPath("$.tags") { value(listOf("kotlin", "news")) }
+            jsonPath("$.tags.length()") { value(2) }
+            jsonPath("$.tags[0]") { value("kotlin") }
+            jsonPath("$.tags[1]") { value("news") }
         }
 
         // "backend" is no longer referenced by any feed.

@@ -1,5 +1,5 @@
--- Несколько живых лент, чтобы после первого запуска сразу было что смотреть.
--- Не нравятся — удали через DELETE /api/feeds/{id}, ничего не сломается.
+-- A few live feeds so a fresh install has content right after the first
+-- refresh cycle. Remove them through DELETE /api/feeds/{id} if not wanted.
 
 insert into feeds (url, title)
 values ('https://blog.jetbrains.com/kotlin/feed/', 'Kotlin Blog'),
