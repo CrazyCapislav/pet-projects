@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: feedhub
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/feedhub
+    username: feedhub
+    password: feedhub
+    hikari:
+      # Slightly above feedhub.refresh.max-concurrent: during a refresh cycle
+      # every coroutine briefly needs a connection.
+      maximum-pool-size: 12
+
+  jpa:
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that entities match it.
+      # ddl-auto: update silently drifts from the intended schema in production.
+      ddl-auto: validate
+    # Keeping the session open for the whole request hides N+1 queries behind
+    # JSON serialization, so associations are fetched explicitly instead.
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  docker:
+    compose:
+      enabled: true
+      # Start the database with the app, but leave it running on shutdown.
+      lifecycle-management: start_only
+
+  threads:
+    virtual:
+      # Request handling is partly blocking, so virtual threads remove the
+      # servlet thread pool as a bottleneck.
+      enabled: true
+
+feedhub:
+  refresh:
+    enabled: true
+    interval: PT10M
+    initial-delay: PT15S
+    timeout: PT15S
+    max-concurrent: 8
+    max-failures-before-disable: 5
+    # Skip articles already stored under another subscription: overlapping
+    # site-wide and section feeds otherwise deliver the same article twice.
+    cross-feed-deduplication: true
+    user-agent: "feedhub/1.0 (+https://github.com/CrazyCapislav/feedhub)"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: feedhub
+
+logging:
+  level:
+    dev.rahim.feedhub: DEBUG
+    # Uncomment to inspect the SQL Hibernate generates; useful when tracking
+    # down N+1. Bind parameters are very verbose, enable them per investigation.
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE
+
+---
+# Production overrides, activated with SPRING_PROFILES_ACTIVE=prod
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  docker:
+    compose:
+      enabled: false
+
+management:
+  endpoint:
+    health:
+      # Health details disclose the database vendor, disk paths and free space.
+      show-details: never
+
+logging:
+  level:
+    dev.rahim.feedhub: INFO

@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>feedhub</title>
+<style>
+  :root {
+    --bg: #f4f6f6;
+    --panel: #ffffff;
+    --sunk: #eaefee;
+    --ink: #16201e;
+    --ink-soft: #5b6a66;
+    --ink-faint: #889692;
+    --rule: #dbe3e1;
+    --accent: #a94b18;
+    --ok: #1a6f52;
+    --warn: #b06a12;
+    --bad: #a3342a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1514;
+      --panel: #161e1c;
+      --sunk: #121a19;
+      --ink: #e3ebe8;
+      --ink-soft: #9aa8a4;
+      --ink-faint: #74827e;
+      --rule: #263231;
+      --accent: #e2884f;
+      --ok: #4dbd91;
+      --warn: #d9a251;
+      --bad: #e0705f;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.6 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+
+  button, input { font: inherit; color: inherit; }
+
+  /* ---------- шапка ---------- */
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule);
+    padding: .7rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: -.02em;
+    margin-right: .4rem;
+  }
+  .brand span { color: var(--accent); }
+
+  .grow { flex: 1; }
+
+  input[type=search], input[type=url] {
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: .42rem .7rem;
+    min-width: 0;
+  }
+  input[type=search] { width: 15rem; }
+  input[type=url] { flex: 1; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  button {
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: .42rem .8rem;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .primary:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+
+  label.toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* ---------- каркас ---------- */
+
+  main {
+    display: grid;
+    grid-template-columns: 17rem 1fr;
+    gap: 1.1rem;
+    max-width: 74rem;
+    margin: 1.1rem auto;
+    padding: 0 1.1rem;
+    align-items: start;
+  }
+
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .panel h2 {
+    margin: 0;
+    padding: .7rem .9rem;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--rule);
+    font-weight: 600;
+  }
+
+  /* ---------- список лент ---------- */
+
+  .feed {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .55rem .9rem;
+    border-bottom: 1px solid var(--rule);
+    cursor: pointer;
+  }
+  .feed:last-child { border-bottom: none; }
+  .feed:hover { background: var(--sunk); }
+  .feed.active { background: var(--sunk); box-shadow: inset 3px 0 0 var(--accent); }
+
+  .feed .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .89rem;
+  }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .dot.ACTIVE { background: var(--ok); }
+  .dot.FAILING { background: var(--warn); }
+  .dot.DISABLED { background: var(--bad); }
+
+  .count {
+    font-size: .72rem;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+  }
+  .count.unread { color: var(--accent); font-weight: 600; }
+
+  .kill {
+    border: none;
+    background: none;
+    padding: 0 .2rem;
+    color: var(--ink-faint);
+    opacity: 0;
+    flex: none;
+  }
+  .feed:hover .kill { opacity: 1; }
+  .kill:hover { color: var(--bad); }
+
+  /* ---------- статьи ---------- */
+
+  .article {
+    padding: .95rem 1.1rem;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: .2rem .8rem;
+  }
+  .article:last-child { border-bottom: none; }
+  .article.read { opacity: .5; }
+
+  .article .title {
+    grid-column: 1;
+    font-size: 1.02rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-decoration: none;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+  .article .title:hover { color: var(--accent); text-decoration: underline; }
+
+  /* Точка перед заголовком — общепринятая пометка «не прочитано» в читалках.
+     Одного затемнения мало: непонятно, что именно затемнение означает. */
+  .udot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: .5rem;
+    vertical-align: .12em;
+    flex: none;
+  }
+
+  .article .meta {
+    grid-column: 1;
+    font-size: .77rem;
+    color: var(--ink-faint);
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  .article .meta b { color: var(--ink-soft); font-weight: 600; }
+
+  .article .summary {
+    grid-column: 1;
+    font-size: .89rem;
+    color: var(--ink-soft);
+    margin-top: .3rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .article .act { grid-column: 2; grid-row: 1 / span 3; }
+  .article .act button { font-size: .78rem; padding: .28rem .6rem; white-space: nowrap; }
+
+  /* ---------- прочее ---------- */
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .6rem .9rem;
+    border-top: 1px solid var(--rule);
+    font-size: .84rem;
+    color: var(--ink-soft);
+  }
+
+  .empty { padding: 2.4rem 1.1rem; text-align: center; color: var(--ink-faint); }
+
+  .addrow { display: flex; gap: .5rem; padding: .7rem .9rem; }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 1.4rem;
+    transform: translateX(-50%) translateY(2rem);
+    background: var(--ink);
+    color: var(--bg);
+    padding: .55rem 1rem;
+    border-radius: 6px;
+    font-size: .87rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #toast { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">feed<span>hub</span></div>
+  <input type="search" id="q" placeholder="Поиск по статьям…" aria-label="Поиск по статьям">
+  <label class="toggle"><input type="checkbox" id="unread"> только непрочитанные</label>
+  <div class="grow"></div>
+  <button id="refresh" class="primary">Обновить ленты</button>
+</header>
+
+<main>
+  <aside class="panel">
+    <h2>Подписки</h2>
+    <div id="feeds"></div>
+    <div class="addrow">
+      <input type="url" id="newFeed" placeholder="https://site.com/rss" aria-label="Адрес новой ленты">
+      <button id="add">+</button>
+    </div>
+  </aside>
+
+  <section class="panel">
+    <h2 id="listTitle">Все статьи</h2>
+    <div id="articles"></div>
+    <div class="bar">
+      <button id="prev">← Раньше</button>
+      <button id="next">Позже →</button>
+      <div class="grow"></div>
+      <span id="pageInfo"></span>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// --------------------------------------------------------------------------
+// Всё общение с сервером идёт через тот же REST API, что и curl.
+// Никакого отдельного бэкенда для страницы нет — это доказательство того,
+// что API самодостаточен.
+// --------------------------------------------------------------------------
+
+const state = { feedId: null, page: 0, size: 20, search: '', unreadOnly: false, totalPages: 1 };
+
+const $ = id => document.getElementById(id);
+
+async function api(path, options) {
+  const res = await fetch('/api' + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    // Сервер отдаёт ошибки в формате RFC 7807 — там есть поле detail
+    // с человекочитаемым текстом. Показываем именно его.
+    let detail = 'HTTP ' + res.status;
+    try { detail = (await res.json()).detail || detail; } catch (_) {}
+    throw new Error(detail);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function toast(message) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+const dateFmt = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+function humanDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const hoursAgo = (Date.now() - d) / 36e5;
+  if (hoursAgo < 1) return 'только что';
+  if (hoursAgo < 24) return Math.floor(hoursAgo) + ' ч назад';
+  return dateFmt.format(d);
+}
+
+// ---------------------------- подписки ----------------------------
+
+async function loadFeeds() {
+  const feeds = await api('/feeds');
+  const box = $('feeds');
+  box.textContent = '';
+
+  box.append(feedRow({ id: null, title: 'Все статьи', status: null,
+                       unreadArticles: feeds.reduce((s, f) => s + (f.unreadArticles || 0), 0) }));
+
+  for (const feed of feeds) box.append(feedRow(feed));
+}
+
+function feedRow(feed) {
+  const row = document.createElement('div');
+  row.className = 'feed' + (state.feedId === feed.id ? ' active' : '');
+  row.tabIndex = 0;
+
+  if (feed.status) {
+    const dot = document.createElement('span');
+    dot.className = 'dot ' + feed.status;
+    dot.title = feed.lastError ? feed.status + ': ' + feed.lastError : feed.status;
+    row.append(dot);
+  }
+
+  const name = document.createElement('span');
+  name.className = 'name';
+  // textContent, а не innerHTML: заголовки приходят из чужих лент,
+  // то есть это недоверенные данные. Через innerHTML сюда бы приехал XSS.
+  name.textContent = feed.title || feed.url;
+  name.title = feed.url || '';
+  row.append(name);
+
+  const count = document.createElement('span');
+  count.className = 'count' + (feed.unreadArticles > 0 ? ' unread' : '');
+  // Число без подписи двусмысленно: «41 / 42» читается в обе стороны.
+  count.textContent = feed.unreadArticles > 0
+    ? feed.unreadArticles + ' новых'
+    : 'всё прочитано';
+  count.title = 'Непрочитанных: ' + (feed.unreadArticles ?? 0) + ' из ' + (feed.totalArticles ?? 0);
+  row.append(count);
+
+  if (feed.id) {
+    const kill = document.createElement('button');
+    kill.className = 'kill';
+    kill.textContent = '✕';
+    kill.title = 'Удалить подписку';
+    kill.onclick = async e => {
+      e.stopPropagation();
+      if (!confirm('Удалить «' + (feed.title || feed.url) + '» вместе со статьями?')) return;
+      await api('/feeds/' + feed.id, { method: 'DELETE' });
+      if (state.feedId === feed.id) state.feedId = null;
+      toast('Подписка удалена');
+      await reload();
+    };
+    row.append(kill);
+  }
+
+  const select = () => { state.feedId = feed.id; state.page = 0; reload(); };
+  row.onclick = select;
+  row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } };
+
+  return row;
+}
+
+// ---------------------------- статьи ----------------------------
+
+async function loadArticles() {
+  const params = new URLSearchParams({ page: state.page, size: state.size });
+  if (state.feedId) params.set('feedId', state.feedId);
+  if (state.search) params.set('search', state.search);
+  if (state.unreadOnly) params.set('unreadOnly', 'true');
+
+  const data = await api('/articles?' + params);
+  state.totalPages = data.totalPages;
+
+  const box = $('articles');
+  box.textContent = '';
+
+  if (!data.items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = state.search
+      ? 'Ничего не нашлось по запросу «' + state.search + '»'
+      : 'Пока пусто. Нажми «Обновить ленты».';
+    box.append(empty);
+  } else {
+    for (const article of data.items) box.append(articleRow(article));
+  }
+
+  $('pageInfo').textContent = data.totalElements
+    ? 'страница ' + (data.page + 1) + ' из ' + data.totalPages + ' · всего ' + data.totalElements
+    : '';
+  $('prev').disabled = state.page === 0;
+  $('next').disabled = !data.hasNext;
+}
+
+function articleRow(article) {
+  const row = document.createElement('div');
+  row.className = 'article' + (article.isRead ? ' read' : '');
+
+  const title = document.createElement('a');
+  title.className = 'title';
+  title.href = article.link;
+  title.target = '_blank';
+  // noopener: без него открытая вкладка получает доступ к window.opener
+  // и может подменить нашу страницу. Ссылки ведут на чужие сайты.
+  title.rel = 'noopener noreferrer';
+  if (!article.isRead) {
+    const dot = document.createElement('span');
+    dot.className = 'udot';
+    dot.setAttribute('aria-label', 'не прочитано');
+    title.append(dot);
+  }
+  title.append(document.createTextNode(article.title));
+  row.append(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const feed = document.createElement('b');
+  feed.textContent = article.feedTitle || '';
+  meta.append(feed);
+  if (article.author) meta.append(document.createTextNode('· ' + article.author));
+  meta.append(document.createTextNode('· ' + humanDate(article.publishedAt)));
+  row.append(meta);
+
+  if (article.summary) {
+    const summary = document.createElement('div');
+    summary.className = 'summary';
+    summary.textContent = article.summary;
+    row.append(summary);
+  }
+
+  const act = document.createElement('div');
+  act.className = 'act';
+  const toggle = document.createElement('button');
+  // Подпись описывает ДЕЙСТВИЕ, которое произойдёт по клику, а не состояние.
+  // «Прочитано» на кнопке читается как ярлык статуса — так делать нельзя.
+  toggle.textContent = article.isRead ? 'Снять отметку' : 'Отметить прочитанным';
+  toggle.onclick = async () => {
+    toggle.disabled = true;
+    try {
+      await api('/articles/' + article.id + '/read', { method: article.isRead ? 'DELETE' : 'POST' });
+      await reload();
+    } catch (e) {
+      toast(e.message);
+      toggle.disabled = false;
+    }
+  };
+  act.append(toggle);
+  row.append(act);
+
+  return row;
+}
+
+// ---------------------------- действия ----------------------------
+
+async function reload() {
+  try {
+    await Promise.all([loadFeeds(), loadArticles()]);
+    $('listTitle').textContent = state.feedId
+      ? (document.querySelector('.feed.active .name')?.textContent || 'Лента')
+      : 'Все статьи';
+  } catch (e) {
+    toast('Не удалось загрузить: ' + e.message);
+  }
+}
+
+$('refresh').onclick = async () => {
+  const btn = $('refresh');
+  btn.disabled = true;
+  btn.textContent = 'Обхожу ленты…';
+  try {
+    const s = await api('/feeds/refresh', { method: 'POST' });
+    toast(`${s.feedsProcessed} лент за ${s.tookMillis} мс · новых статей: ${s.newArticles}` +
+          (s.feedsFailed ? ` · с ошибкой: ${s.feedsFailed}` : ''));
+    state.page = 0;
+    await reload();
+  } catch (e) {
+    toast('Обновление не удалось: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Обновить ленты';
+  }
+};
+
+$('add').onclick = async () => {
+  const input = $('newFeed');
+  const url = input.value.trim();
+  if (!url) return;
+  $('add').disabled = true;
+  try {
+    const feed = await api('/feeds', { method: 'POST', body: JSON.stringify({ url }) });
+    input.value = '';
+    toast('Добавлено: ' + (feed.title || feed.url));
+    await reload();
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    $('add').disabled = false;
+  }
+};
+
+$('newFeed').onkeydown = e => { if (e.key === 'Enter') $('add').click(); };
+
+let searchTimer;
+$('q').oninput = e => {
+  clearTimeout(searchTimer);
+  // Дебаунс: не дёргаем сервер на каждую букву.
+  searchTimer = setTimeout(() => {
+    state.search = e.target.value.trim();
+    state.page = 0;
+    loadArticles().catch(err => toast(err.message));
+  }, 300);
+};
+
+$('unread').onchange = e => {
+  state.unreadOnly = e.target.checked;
+  state.page = 0;
+  loadArticles().catch(err => toast(err.message));
+};
+
+$('prev').onclick = () => { if (state.page > 0) { state.page--; loadArticles(); } };
+$('next').onclick = () => { state.page++; loadArticles(); };
+
+reload();
+</script>
+</body>
+</html>

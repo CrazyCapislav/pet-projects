@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: 'postgres:17-alpine'
+    container_name: feedhub-postgres
+    environment:
+      POSTGRES_DB: feedhub
+      POSTGRES_USER: feedhub
+      POSTGRES_PASSWORD: feedhub
+    ports:
+      # Фиксированный порт, а не случайный: так можно подключиться из IDE,
+      # psql или DBeaver, не выясняя каждый раз, что там намапилось.
+      - '5432:5432'
+    volumes:
+      - feedhub-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U feedhub -d feedhub']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  feedhub-pgdata:
