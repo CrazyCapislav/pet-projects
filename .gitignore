@@ -1,0 +1,8 @@
+# Each project lives in its own repository; this one is only an index.
+bookswap/
+feedhub/
+gradus/
+
+.idea/
+.vscode/
+.DS_Store
